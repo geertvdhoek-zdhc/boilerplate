@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install root dependencies
+        run: npm ci
+      
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+      
+      - name: Test backend
+        run: cd backend && npm run test
+        env:
+          SUPABASE_URL: https://fake-url.supabase.co
+          SUPABASE_ANON_KEY: fake-key
+          JWT_SECRET: fake-jwt-secret
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install root dependencies
+        run: npm ci
+      
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      
+      - name: Test frontend unit tests
+        run: cd frontend && npm run test:unit -- --run
+        env:
+          VITE_API_URL: http://localhost:3001
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: http://localhost:3001
+
+  build:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+        env:
+          VITE_API_URL: http://localhost:3001
+      
+      - name: Build backend
+        run: cd backend && npm ci && npm run build
